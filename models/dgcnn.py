@@ -98,7 +98,7 @@ def get_model(point_cloud, is_training, bn_decay=None):
 
   net = residual_attn_block(net, k=k, C_out=64,
                             C_attn=256, is_training=is_training,
-                            bn_decay=bn_decay, scope='attn_1')
+                            bn_decay=bn_decay, scope='dgcnn_attn_1')
   net2 = net
 
 
@@ -116,28 +116,28 @@ def get_model(point_cloud, is_training, bn_decay=None):
 
   net = residual_attn_block(net, k=k, C_out=128,
                             C_attn=256, is_training=is_training,
-                            bn_decay=bn_decay, scope='attn_2')
+                            bn_decay=bn_decay, scope='dgcnn_attn_2')
   net4 = net
 
 
   net = tf_util.conv2d(tf.concat([net1, net2, net3, net4], axis=-1), 1024, [1, 1], 
                        padding='VALID', stride=[1,1],
                        bn=True, is_training=is_training,
-                       scope='agg', bn_decay=bn_decay)
+                       scope='dgcnn_agg', bn_decay=bn_decay)
  
   net = tf.reduce_max(net, axis=1, keep_dims=True) 
 
   # MLP on global point cloud vector
   net = tf.reshape(net, [batch_size, -1]) 
   net = tf_util.fully_connected(net, 512, bn=True, is_training=is_training,
-                                scope='fc1', bn_decay=bn_decay)
+                                scope='dgcnn_fc1', bn_decay=bn_decay)
   net = tf_util.dropout(net, keep_prob=0.5, is_training=is_training,
-                         scope='dp1')
+                         scope='dgcnn_dp1')
   net = tf_util.fully_connected(net, 256, bn=True, is_training=is_training,
-                                scope='fc2', bn_decay=bn_decay)
+                                scope='dgcnn_fc2', bn_decay=bn_decay)
   net = tf_util.dropout(net, keep_prob=0.5, is_training=is_training,
-                        scope='dp2')
-  net = tf_util.fully_connected(net, 40, activation_fn=None, scope='fc3')
+                        scope='dgcnn_dp2')
+  net = tf_util.fully_connected(net, 40, activation_fn=None, scope='dgcnn_fc3')
 
   return net, end_points
 
