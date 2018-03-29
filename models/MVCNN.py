@@ -1,14 +1,20 @@
 import tensorflow as tf
 import numpy as np
 import re
-import globals as g_
+# import globals as g_
+import os
+import sys
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(BASE_DIR)
+sys.path.append('../')
+import utils.tf_util as tf_util
 
-FLAGS = tf.app.flags.FLAGS
+# FLAGS = tf.app.flags.FLAGS
 # Basic model parameters.
-tf.app.flags.DEFINE_integer('batch_size', g_.BATCH_SIZE,
-                            """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_float('learning_rate', g_.INIT_LEARNING_RATE,
-                            """Initial learning rate.""")
+# tf.app.flags.DEFINE_integer('batch_size', g_.BATCH_SIZE,
+#                             """Number of images to process in a batch.""")
+# tf.app.flags.DEFINE_float('learning_rate', g_.INIT_LEARNING_RATE,
+#                             """Initial learning rate.""")
 
 MOVING_AVERAGE_DECAY = 0.9999     # The decay to use for the moving average.
 NUM_EPOCHS_PER_DECAY = 350.0      # Epochs after which learning rate decays.
@@ -19,7 +25,7 @@ DEFAULT_PADDING = 'SAME'
 TOWER_NAME = 'tower'
 
 
-def inference_multiview(images, n_classes=40, keep_prob=0.5):
+def inference_multiview(images, n_classes=40, is_training=True):
     """
     :param images: (N, V, W, H, C)
     :param is_training: is_training
@@ -27,11 +33,17 @@ def inference_multiview(images, n_classes=40, keep_prob=0.5):
     :return: fc logits
     """
 
-    batch_size = images.get_shape().as_list()[0]
-    n_views = images.get_shape().as_list()[1]
-    weight = images.get_shape().as_list()[2]
-    height = images.get_shape().as_list()[3]
-    dims = images.get_shape().as_list()[4]
+    # batch_size = images.get_shape().as_list()[0]
+    # n_views = images.get_shape().as_list()[1]
+    # weight = images.get_shape().as_list()[2]
+    # height = images.get_shape().as_list()[3]
+    # dims = images.get_shape().as_list()[4]
+
+    batch_size = images.shape[0].value
+    n_views = images.shape[1].value
+    weight = images.shape[2].value
+    height = images.shape[3].value
+    dims = images.shape[4].value
 
     # Get images (N*V, W, H, C)
     images = tf.reshape(images, [batch_size*n_views, weight, height, dims])
@@ -55,13 +67,16 @@ def inference_multiview(images, n_classes=40, keep_prob=0.5):
     view_pooling = tf.reshape(flatten, [batch_size, n_views, hwc])
     view_pooling = tf.reduce_max(view_pooling, axis=1)
 
-    print 'pool5_vp', view_pooling.get_shape().as_list()
+    # print 'pool5_vp', view_pooling.get_shape().as_list()
 
-    fc6 = _fc('fc6', view_pooling, 4096, dropout=keep_prob)
-    fc7 = _fc('fc7', fc6, 4096, dropout=keep_prob)
+    fc6_b = _fc('fc6', view_pooling, 4096)
+    fc6 = tf_util.dropout(fc6_b, is_training, scope='dp6', keep_prob=0.5)
+    fc7 = _fc('fc7', fc6, 4096)
+    fc7 = tf_util.dropout(fc7, is_training, scope='dp7', keep_prob=0.5)
+
     fc8 = _fc('fc8', fc7, n_classes)
 
-    return fc8
+    return fc8, fc6_b
 
 
 def load_alexnet_to_mvcnn(sess, caffetf_modelpath):
@@ -69,7 +84,7 @@ def load_alexnet_to_mvcnn(sess, caffetf_modelpath):
 
     caffemodel = np.load(caffetf_modelpath)
     data_dict = caffemodel.item()
-    for l in ['conv1', 'conv2', 'conv3', 'conv4', 'conv5', 'fc6', 'fc7']:
+    for l in ['conv1', 'conv2', 'conv3', 'conv4', 'conv5', 'fc6']:
         name = l
         _load_param(sess, name, data_dict[l])
 
@@ -79,13 +94,13 @@ def _load_param(sess, name, layer_data):
 
     with tf.variable_scope(name, reuse=True):
         for subkey, data in zip(('weights', 'biases'), (w, b)):
-            print 'loading ', name, subkey
+            # print ('loading ', name, subkey)
 
             try:
                 var = tf.get_variable(subkey)
                 sess.run(var.assign(data))
             except ValueError as e:
-                print 'varirable loading failed:', subkey, '(%s)' % str(e)
+                print ('varirable loading failed:', subkey, '(%s)' % str(e))
 
 
 def loss(fc8, labels):
@@ -103,31 +118,31 @@ def classify(fc8):
     return y
 
 
-def _add_loss_summaries(total_loss):
-    """Add summaries for losses in CIFAR-10 model.
-    Generates moving average for all losses and associated summaries for
-    visualizing the performance of the network.
-    Args:
-    total_loss: Total loss from loss().
-    Returns:
-    loss_averages_op: op for generating moving averages of losses.
-    """
-    # Compute the moving average of all individual losses and the total loss.
-    loss_averages = tf.train.ExponentialMovingAverage(0.9, name='avg')
-    losses = tf.get_collection('losses')
-    print 'losses:', losses
-    loss_averages_op = loss_averages.apply(losses + [total_loss])
-    # Attach a scalar summary to all individual losses and the total loss; do the
-    # same for the averaged version of the losses.
-    for l in losses + [total_loss]:
-        # Name each loss as '(raw)' and name the moving average version of the loss
-        # as the original loss name.
-        tf.summary.scalar(l.op.name +' (raw)', l)
-        tf.summary.scalar(l.op.name, loss_averages.average(l))
-    return loss_averages_op
+# def _add_loss_summaries(total_loss):
+#     """Add summaries for losses in CIFAR-10 model.
+#     Generates moving average for all losses and associated summaries for
+#     visualizing the performance of the network.
+#     Args:
+#     total_loss: Total loss from loss().
+#     Returns:
+#     loss_averages_op: op for generating moving averages of losses.
+#     """
+#     # Compute the moving average of all individual losses and the total loss.
+#     loss_averages = tf.train.ExponentialMovingAverage(0.9, name='avg')
+#     losses = tf.get_collection('losses')
+#     print 'losses:', losses
+#     loss_averages_op = loss_averages.apply(losses + [total_loss])
+#     # Attach a scalar summary to all individual losses and the total loss; do the
+#     # same for the averaged version of the losses.
+#     for l in losses + [total_loss]:
+#         # Name each loss as '(raw)' and name the moving average version of the loss
+#         # as the original loss name.
+#         tf.summary.scalar(l.op.name +' (raw)', l)
+#         tf.summary.scalar(l.op.name, loss_averages.average(l))
+#     return loss_averages_op
 
 
-def _fc(name, in_, outsize, dropout=1.0, reuse=False):
+def _fc(name, in_, outsize, reuse=False):
     with tf.variable_scope(name, reuse=reuse) as scope:
         # Move everything into depth so we can perform a single matrix multiply.
 
@@ -135,11 +150,11 @@ def _fc(name, in_, outsize, dropout=1.0, reuse=False):
         weights = _variable_with_weight_decay('weights', shape=[insize, outsize], wd=0.004)
         biases = _variable_on_cpu('biases', [outsize], tf.constant_initializer(0.0))
         fc = tf.nn.relu(tf.matmul(in_, weights) + biases, name=scope.name)
-        fc = tf.nn.dropout(fc, dropout)
+        # fc = tf.nn.dropout(fc, dropout)
 
-        _activation_summary(fc)
+        # _activation_summary(fc)
 
-    print name, fc.get_shape().as_list()
+    # print name, fc.get_shape().as_list()
     return fc
 
 
@@ -147,7 +162,7 @@ def _maxpool(name, in_, ksize, strides, padding=DEFAULT_PADDING):
     pool = tf.nn.max_pool(in_, ksize=ksize, strides=strides,
                           padding=padding, name=name)
 
-    print name, pool.get_shape().as_list()
+    # print name, pool.get_shape().as_list()
     return pool
 
 
@@ -171,9 +186,9 @@ def _conv(name, in_, ksize, strides=[1, 1, 1, 1], padding=DEFAULT_PADDING, group
         biases = _variable_on_cpu('biases', [n_kern], tf.constant_initializer(0.0))
         conv = tf.nn.bias_add(conv, biases)
         conv = tf.nn.relu(conv, name=scope.name)
-        _activation_summary(conv)
+        # _activation_summary(conv)
 
-    print name, conv.get_shape().as_list()
+    # print name, conv.get_shape().as_list()
     return conv
 
 
@@ -197,20 +212,20 @@ def _variable_with_weight_decay(name, shape, wd):
     return var
 
 
-def _activation_summary(x):
-    """Helper to create summaries for activations.
-    Creates a summary that provides a histogram of activations.
-    Creates a summary that measure the sparsity of activations.
-    Args:
-      x: Tensor
-    Returns:
-      nothing
-    """
-    # Remove 'tower_[0-9]/' from the name in case this is a multi-GPU training
-    # session. This helps the clarity of presentation on tensorboard.
-    tensor_name = re.sub('%s_[0-9]*/' % TOWER_NAME, '', x.op.name)
-    tf.summary.histogram(tensor_name + '/activations', x)
-    tf.summary.scalar(tensor_name + '/sparsity', tf.nn.zero_fraction(x))
+# def _activation_summary(x):
+#     """Helper to create summaries for activations.
+#     Creates a summary that provides a histogram of activations.
+#     Creates a summary that measure the sparsity of activations.
+#     Args:
+#       x: Tensor
+#     Returns:
+#       nothing
+#     """
+#     # Remove 'tower_[0-9]/' from the name in case this is a multi-GPU training
+#     # session. This helps the clarity of presentation on tensorboard.
+#     tensor_name = re.sub('%s_[0-9]*/' % TOWER_NAME, '', x.op.name)
+#     tf.summary.histogram(tensor_name + '/activations', x)
+#     tf.summary.scalar(tensor_name + '/sparsity', tf.nn.zero_fraction(x))
 
 
 def _variable_on_cpu(name, shape, initializer):
@@ -227,40 +242,40 @@ def _variable_on_cpu(name, shape, initializer):
     return var
 
 
-def train(total_loss, global_step, data_size):
-    num_batches_per_epoch = data_size / FLAGS.batch_size
-    decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY)
-
-    lr = tf.train.exponential_decay(FLAGS.learning_rate,
-                                    global_step,
-                                    decay_steps,
-                                    LEARNING_RATE_DECAY_FACTOR,
-                                    staircase=True)
-    tf.summary.scalar('learning_rate', lr)
-
-    loss_averages_op = _add_loss_summaries(total_loss)
-
-    with tf.control_dependencies([loss_averages_op]):
-        opt = tf.train.AdamOptimizer(lr)
-        grads = opt.compute_gradients(total_loss)
-
-    # apply gradients
-    apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
-
-    for var in tf.trainable_variables():
-        tf.summary.histogram(var.op.name, var)
-
-    for grad, var in grads:
-        if grad is not None:
-            tf.summary.histogram(var.op.name + '/gradients', grad)
-
-    variable_averages = tf.train.ExponentialMovingAverage(
-        MOVING_AVERAGE_DECAY, global_step)
-
-    variable_averages_op = variable_averages.apply(tf.trainable_variables())
-
-    with tf.control_dependencies([apply_gradient_op, variable_averages_op]):
-        train_op = tf.no_op(name='train')
-
-    return train_op
+# def train(total_loss, global_step, data_size):
+#     num_batches_per_epoch = data_size / FLAGS.batch_size
+#     decay_steps = int(num_batches_per_epoch * NUM_EPOCHS_PER_DECAY)
+#
+#     lr = tf.train.exponential_decay(FLAGS.learning_rate,
+#                                     global_step,
+#                                     decay_steps,
+#                                     LEARNING_RATE_DECAY_FACTOR,
+#                                     staircase=True)
+#     tf.summary.scalar('learning_rate', lr)
+#
+#     loss_averages_op = _add_loss_summaries(total_loss)
+#
+#     with tf.control_dependencies([loss_averages_op]):
+#         opt = tf.train.AdamOptimizer(lr)
+#         grads = opt.compute_gradients(total_loss)
+#
+#     # apply gradients
+#     apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
+#
+#     for var in tf.trainable_variables():
+#         tf.summary.histogram(var.op.name, var)
+#
+#     for grad, var in grads:
+#         if grad is not None:
+#             tf.summary.histogram(var.op.name + '/gradients', grad)
+#
+#     variable_averages = tf.train.ExponentialMovingAverage(
+#         MOVING_AVERAGE_DECAY, global_step)
+#
+#     variable_averages_op = variable_averages.apply(tf.trainable_variables())
+#
+#     with tf.control_dependencies([apply_gradient_op, variable_averages_op]):
+#         train_op = tf.no_op(name='train')
+#
+#     return train_op
 

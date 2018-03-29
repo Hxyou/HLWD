@@ -18,18 +18,18 @@ def input_transform_net(edge_feature, is_training, bn_decay=None, K=3, is_dist=F
   net = tf_util.conv2d(edge_feature, 64, [1,1],
              padding='VALID', stride=[1,1],
              bn=True, is_training=is_training,
-             scope='tconv1', bn_decay=bn_decay, is_dist=is_dist)
+             scope='t1', bn_decay=bn_decay, is_dist=is_dist)
   net = tf_util.conv2d(net, 128, [1,1],
              padding='VALID', stride=[1,1],
              bn=True, is_training=is_training,
-             scope='tconv2', bn_decay=bn_decay, is_dist=is_dist)
+             scope='t2', bn_decay=bn_decay, is_dist=is_dist)
   
   net = tf.reduce_max(net, axis=-2, keep_dims=True)
   
   net = tf_util.conv2d(net, 1024, [1,1],
              padding='VALID', stride=[1,1],
              bn=True, is_training=is_training,
-             scope='tconv3', bn_decay=bn_decay, is_dist=is_dist)
+             scope='t3', bn_decay=bn_decay, is_dist=is_dist)
   net = tf_util.max_pool2d(net, [num_point,1],
                padding='VALID', scope='tmaxpool')
 
