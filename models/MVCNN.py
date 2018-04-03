@@ -25,7 +25,61 @@ DEFAULT_PADDING = 'SAME'
 TOWER_NAME = 'tower'
 
 
-def inference_multiview(images, n_classes=40, is_training=True):
+def inference_multiview(images, n_classes=40, is_training=False):
+    """
+    :param images: (N, V, W, H, C)
+    :param is_training: is_training
+    :param bn_decay: bn_decay
+    :return: fc logits
+    """
+
+    # batch_size = images.get_shape().as_list()[0]
+    # n_views = images.get_shape().as_list()[1]
+    # weight = images.get_shape().as_list()[2]
+    # height = images.get_shape().as_list()[3]
+    # dims = images.get_shape().as_list()[4]
+
+    batch_size = images.shape[0].value
+    n_views = images.shape[1].value
+    weight = images.shape[2].value
+    height = images.shape[3].value
+    dims = images.shape[4].value
+
+    # Get images (N*V, W, H, C)
+    images = tf.reshape(images, [batch_size*n_views, weight, height, dims])
+    reuse = False
+
+    conv1 = _conv('conv1', images, [11, 11, 3, 96], [1, 4, 4, 1], 'VALID', reuse=reuse)
+    lrn1 = None
+    pool1 = _maxpool('pool1', conv1, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID')
+
+    conv2 = _conv('conv2', pool1, [5, 5, 96, 256], group=2, reuse=reuse)
+    lrn2 = None
+    pool2 = _maxpool('pool2', conv2, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID')
+
+    conv3 = _conv('conv3', pool2, [3, 3, 256, 384], reuse=reuse)
+    conv4 = _conv('conv4', conv3, [3, 3, 384, 384], group=2, reuse=reuse)
+    conv5 = _conv('conv5', conv4, [3, 3, 384, 256], group=2, reuse=reuse)
+    pool5 = _maxpool('pool5', conv5, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='VALID')
+
+    hwc = np.prod(pool5.get_shape().as_list()[1:])
+    flatten = tf.reshape(pool5, [batch_size*n_views, hwc])
+    view_pooling = tf.reshape(flatten, [batch_size, n_views, hwc])
+    view_pooling = tf.reduce_max(view_pooling, axis=1)
+
+    # print 'pool5_vp', view_pooling.get_shape().as_list()
+
+    fc6_b = _fc('fc6', view_pooling, 4096)
+    # fc6 = tf_util.dropout(fc6_b, is_training, scope='dp6', keep_prob=0.5)
+    # fc7 = _fc('fc7', fc6, 4096)
+    # fc7 = tf_util.dropout(fc7, is_training, scope='dp7', keep_prob=0.5)
+    #
+    # fc8 = _fc('fc8', fc7, n_classes)
+
+    return fc6_b
+
+
+def inference_multiview_aux(images, n_classes=40, is_training=False):
     """
     :param images: (N, V, W, H, C)
     :param is_training: is_training
@@ -76,7 +130,8 @@ def inference_multiview(images, n_classes=40, is_training=True):
 
     fc8 = _fc('fc8', fc7, n_classes)
 
-    return fc8, fc6_b
+    return fc8, fc6_b, fc6, view_pooling
+
 
 
 def load_alexnet_to_mvcnn(sess, caffetf_modelpath):
@@ -103,14 +158,26 @@ def _load_param(sess, name, layer_data):
                 print ('varirable loading failed:', subkey, '(%s)' % str(e))
 
 
-def loss(fc8, labels):
-    l = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=fc8)
-    l = tf.reduce_mean(l)
+# def loss(fc8, labels):
+#     l = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels, logits=fc8)
+#     l = tf.reduce_mean(l)
+#
+#     tf.add_to_collection('losses', l)
+#
+#     return tf.add_n(tf.get_collection('losses'), name='total_loss')
 
-    tf.add_to_collection('losses', l)
+def get_loss_mv(pred, label):
+  """ pred: B*NUM_CLASSES,
+      label: B, """
 
-    return tf.add_n(tf.get_collection('losses'), name='total_loss')
+  labels = tf.one_hot(indices=label, depth=40)
+  loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=pred)
+  classify_loss = tf.reduce_mean(loss)
 
+  # labels = tf.one_hot(indices=label, depth=40)
+  # loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=pred, label_smoothing=0.2)
+  # classify_loss = tf.reduce_mean(loss)
+  return classify_loss
 
 def classify(fc8):
     softmax = tf.nn.softmax(fc8)

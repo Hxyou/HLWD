@@ -97,9 +97,9 @@ def multi_modal(point_cloud, view_images, is_training=False, bn_decay=None, n_cl
     :return: multi-modal logit and mvcnn logit
     """
 
-    mv_logit, mv_global = MVCNN.inference_multiview(view_images, n_classes, is_training=is_training)
+    fc6_b = MVCNN.inference_multiview(view_images, n_classes, is_training=is_training)
 
-    mv_global = tf_util.fully_connected(mv_global, 512, bn=True, is_training=is_training,
+    mv_global = tf_util.fully_connected(fc6_b, 1024, bn=True, is_training=is_training,
                                   scope='pc_mv_t', bn_decay=bn_decay)
 
     batch_size = point_cloud.get_shape()[0].value
@@ -163,7 +163,7 @@ def multi_modal(point_cloud, view_images, is_training=False, bn_decay=None, n_cl
                           scope='pc_dp2')
     net = tf_util.fully_connected(net, 40, activation_fn=None, scope='pc_fc3')
 
-    return net, mv_logit
+    return net
 
 
 def get_loss_pc(pred, label):
