@@ -31,7 +31,7 @@ def trans_net(point_cloud, k=20, is_training=False, bn_decay=None, scope='transf
     return point_cloud_transformed
 
 
-def residual_attn_block(point_cloud, mv_fc,  k=20, C_out=64, C_attn=256, is_training=True, bn_decay=None, scope='attn1_'):
+def residual_attn_block(point_cloud, mv_fc,  k=20, get_mask=False, C_out=64, C_attn=256, is_training=True, bn_decay=None, scope='attn1_'):
     """
 
     :param point_cloud: (N, P, 1, C_in)
@@ -81,12 +81,13 @@ def residual_attn_block(point_cloud, mv_fc,  k=20, C_out=64, C_attn=256, is_trai
     net = tf.add(res2_attn, res1)
     # print (net.get_shape())
 
-    return net
+    if get_mask:
+        return net, res2_mask
+    else:
+        return net
 
 
-
-
-def multi_modal(point_cloud, view_images, is_training=False, bn_decay=None, n_classes=40):
+def multi_modal(point_cloud, view_images, is_training=False, bn_decay=None, n_classes=40, get_ft=False, get_mask=False):
     """
 
     :param point_cloud: (B, N, 3)
@@ -131,16 +132,24 @@ def multi_modal(point_cloud, view_images, is_training=False, bn_decay=None, n_cl
     net2 = net
 
 
-    net = residual_attn_block(net, mv_global, k=k, C_out=64,
+    net = residual_attn_block(net, mv_global, k=k, C_out=64, get_mask=get_mask,
                               C_attn=256, is_training=is_training,
                               bn_decay=bn_decay, scope='pc_attn_1')
-    net3 = net
+    if get_mask:
+        net3, mask1 = net
+        net = net3
+    else:
+        net3 = net
 
 
-    net = residual_attn_block(net, mv_global, k=k, C_out=128,
+    net = residual_attn_block(net, mv_global, k=k, C_out=128, get_mask=get_mask,
                               C_attn=256, is_training=is_training,
                               bn_decay=bn_decay, scope='pc_attn_2')
-    net4 = net
+    if get_mask:
+        net4, mask2 = net
+        net = net3
+    else:
+        net4 = net
 
 
     net = tf_util.conv2d(tf.concat([net1, net2, net3, net4], axis=-1), 1024, [1, 1],
@@ -153,17 +162,24 @@ def multi_modal(point_cloud, view_images, is_training=False, bn_decay=None, n_cl
     # MLP on global point cloud vector
     net = tf.reshape(net, [batch_size, -1])
     net = tf.concat([net, mv_global], axis=-1)
+
     net = tf_util.fully_connected(net, 512, bn=True, is_training=is_training,
                                   scope='pc_fc1', bn_decay=bn_decay)
     net = tf_util.dropout(net, keep_prob=0.5, is_training=is_training,
                           scope='pc_dp1')
     net = tf_util.fully_connected(net, 256, bn=True, is_training=is_training,
                                   scope='pc_fc2', bn_decay=bn_decay)
+    ft = net
     net = tf_util.dropout(net, keep_prob=0.5, is_training=is_training,
                           scope='pc_dp2')
     net = tf_util.fully_connected(net, 40, activation_fn=None, scope='pc_fc3')
 
-    return net
+    if get_ft:
+        return net, ft
+    elif get_mask:
+        return net, mask1, mask2
+    else:
+        return net
 
 
 def get_loss_pc(pred, label):

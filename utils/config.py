@@ -32,11 +32,15 @@ class config(object):
         self.result_sub_folder = cfg.get('TRAIN', 'result_sub_folder')
         self.ckpt_folder = cfg.get('TRAIN', 'ckpt_folder')
         self.split_folder = cfg.get('TRAIN', 'split_folder')
+        self.feature_folder = cfg.get('TRAIN', 'feature_folder')
+        self.vis_attn_folder = cfg.get('TRAIN', 'vis_attn_folder')
 
         self.split_train = cfg.get('TRAIN', 'split_train')
         self.split_test = cfg.get('TRAIN', 'split_test')
         self.ckpt_model = cfg.get('TRAIN', 'ckpt_model')
         self.ckpt_optim = cfg.get('TRAIN', 'ckpt_optim')
+        self.feature_file = cfg.get('TRAIN', 'feature_file')
+        self.mask_file = cfg.get('TRAIN', 'mask_file')
         self.ckpt_view_model = cfg.get('TRAIN', 'ckpt_view_model')
         self.log_dir = cfg.get('TRAIN', 'log_dir')
 
@@ -64,3 +68,5 @@ class config(object):
         self.check_dir(self.ckpt_folder)
         self.check_dir(self.split_folder)
         self.check_dir(self.log_dir)
+        self.check_dir(self.feature_folder)
+        self.check_dir(self.vis_attn_folder)

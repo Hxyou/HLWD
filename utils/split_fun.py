@@ -49,6 +49,9 @@ def split_pc_views():
                       'pc': test_pc[shape_name]['pc'],
                       'shape_name': shape_name})
 
+    test = sorted(test, key=lambda x: x['shape_name'])
+    train = sorted(train, key=lambda x: x['shape_name'])
+
     print('train num: %d' % len(train))
     print('test num: %d' % len(test))
 
@@ -72,6 +75,7 @@ def get_one_class_view_list(d_root, lbl, lbl_idx):
                |-......
     """
     full_names = glob.glob(osp.join(d_root, '*.jpg'))
+    full_names = sorted(full_names)
     raw_structed_data = {}
     structed_data = {}
     names = [osp.split(name)[1] for name in full_names]
@@ -92,6 +96,7 @@ def get_one_class_view_list(d_root, lbl, lbl_idx):
 
 def get_one_class_pc_list(d_root, lbl, lbl_idx):
     full_names = glob.glob(osp.join(d_root, '*.npy'))
+    full_names = sorted(full_names)
     raw_structed_data = {}
     structed_data = {}
     names = [osp.split(name)[1] for name in full_names]
