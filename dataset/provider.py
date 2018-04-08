@@ -32,9 +32,10 @@ class view_data(object):
         self.cfg = cfg
         self.batch_size = batch_size
 
-    def get_batch(self, idx):
+    def get_batch(self, idx, view_num=12):
         start_idx = idx*self.batch_size
         end_idx = (idx+1)*self.batch_size
+        view_sep = 12 // view_num
 
         imgs = np.zeros((self.batch_size, 12, self.img_sz, self.img_sz, 3)).astype(np.float32)
         lbls = np.zeros(self.batch_size).astype(np.int64)
@@ -45,7 +46,7 @@ class view_data(object):
                 img = img.resize((self.img_sz, self.img_sz))
                 img = np.array(img)/255.0
                 imgs[_idx, view_idx] = img
-        return imgs, lbls
+        return imgs[:,::view_sep], lbls
 
     def __len__(self):
         return len(self.shape_list)//self.batch_size
@@ -83,7 +84,7 @@ class pc_view_data(object):
         view_sep = 12//view_num
 
         imgs = np.zeros((self.batch_size, 12, self.img_sz, self.img_sz, 3)).astype(np.float32)
-        pcs = np.zeros((self.batch_size, self.ps_input_num, 3)).astype(np.float32)
+        pcs = np.zeros((self.batch_size, point_num, 3)).astype(np.float32)
         lbls = np.zeros(self.batch_size).astype(np.int64)
         for _idx, shape_idx in enumerate(range(start_idx, end_idx)):
             lbls[_idx] = self.shape_list[shape_idx]['label']
@@ -101,6 +102,7 @@ class pc_view_data(object):
 
     def get_len(self):
         return len(self.shape_list), len(self.shape_list)//self.batch_size
+
 
 class pc_data(object):
     def __init__(self, cfg, state='train', batch_size=4, shuffle=False, img_sz=227, ps_input_num=1024):
@@ -161,7 +163,11 @@ class pc_data(object):
 
 if __name__ == '__main__':
     cfg = utils.config.config()
-    # vd = view_data(cfg, state='test', batch_size=8, shuffle=True)
+    pd = pc_data(cfg, state='test', batch_size=1, shuffle=True, ps_input_num=1024)
+    idxs, names = pd.get_sp_idxs('airplane_0659')
+    for idx in idxs:
+        pc, lbl, shape_name = pd[idx]
+    utils.generate_pc.draw_pc(pc)
     # batch_len = len(vd)
     # imgs, lbls = vd.get_batch(307)
     # print(batch_len)
@@ -170,11 +176,11 @@ if __name__ == '__main__':
     # Image.fromarray((imgs[0][0]*255).astype(np.uint8)).show()
 
 
-    pvd = pc_view_data(cfg, state='test', batch_size=8, shuffle=True)
-    batch_len = len(pvd)
-    imgs, pcs, lbls = pvd.get_batch(307, view_num=4)
-    print(batch_len)
-    print(imgs.shape)
-    print(lbls)
-    Image.fromarray((imgs[0][0]*255).astype(np.uint8)).show()
-    utils.generate_pc.draw_pc(pcs[0])
+    # pvd = pc_view_data(cfg, state='test', batch_size=8, shuffle=False)
+    # batch_len = len(pvd)
+    # imgs, pcs, lbls = pvd.get_batch(307, view_num=4)
+    # print(batch_len)
+    # print(imgs.shape)
+    # print(lbls)
+    # Image.fromarray((imgs[0][0]*255).astype(np.uint8)).show()
+    # utils.generate_pc.draw_pc(pcs[0])

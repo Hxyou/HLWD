@@ -129,7 +129,8 @@ def generate(cfg):
 
 def draw_pc(pc, show=True, save_dir=None):
     ax = plt.figure().add_subplot(111, projection='3d')
-    ax.scatter(pc[:, 0], pc[:, 1], pc[:, 2])
+    ax.scatter(pc[:, 0], pc[:, 1], pc[:, 2], marker='.')
+    ax.axis('off')
     if show:
         plt.show()
     if save_dir is not None:

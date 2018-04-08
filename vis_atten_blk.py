@@ -49,9 +49,11 @@ class vis_att(object):
     def vis(self, pc, mask1, mask2, shape_name):
         for idx in tqdm(range(mask1.shape[1])):
             save_name = osp.join(self.cfg.vis_attn_folder, '%s_mask1_%d.jpg'%(shape_name, idx))
+            # save_name = osp.join('/home/fyf/data/mm 2018 data', '%s_mask1_%d.jpg'%(shape_name, idx))
             self._vis(pc, mask1[:, idx], save_name)
         for idx in tqdm(range(mask2.shape[1])):
             save_name = osp.join(self.cfg.vis_attn_folder, '%s_mask2_%d.jpg'%(shape_name, idx))
+            # save_name = osp.join('/home/fyf/data/mm 2018 data', '%s_mask2_%d.jpg'%(shape_name, idx))
             self._vis(pc, mask2[:, idx], save_name)
 
     def vis_sp(self,shape_name, mask_name, sub_idx):
@@ -59,13 +61,15 @@ class vis_att(object):
         idx = idx[0]
         pc, lbl, shape_name = self.shapes[idx]
         if mask_name == 'mask1':
-            save_name = osp.join(self.cfg.vis_attn_folder, '%s_mask1_%d.jpg' % (shape_name, sub_idx))
+            # save_name = osp.join(self.cfg.vis_attn_folder, '%s_mask1_%d.jpg' % (shape_name, sub_idx))
+            save_name = osp.join('/home/fyf/data/mm 2018 data/atten', '%s_mask1_%d.jpg'%(shape_name, sub_idx))
             mask = self.att_mask['mask1'][idx, :, sub_idx]
         else:
-            save_name = osp.join(self.cfg.vis_attn_folder, '%s_mask2_%d.jpg' % (shape_name, sub_idx))
+            # save_name = osp.join(self.cfg.vis_attn_folder, '%s_mask2_%d.jpg' % (shape_name, sub_idx))
+            save_name = osp.join('/home/fyf/data/mm 2018 data/atten', '%s_mask2_%d.jpg'%(shape_name, sub_idx))
             mask = self.att_mask['mask2'][idx, :, sub_idx]
 
-        self._vis(pc, mask, save_name, show=True)
+        self._vis(pc, mask, save_name, show=False)
 
     def _vis(self, pc, c, save_name, show=False):
         # color = heat_map_fun.get_heatmap_from_prob(c)
@@ -79,6 +83,7 @@ class vis_att(object):
         ax.set_xlim(l_min, l_max)
         ax.set_ylim(l_min, l_max)
         ax.set_zlim(pc[:, 2].min(), pc[:, 2].max())
+        ax.axis('off')
         # ax.set_zlim(-1, 1)
         if show:
             plt.show()
@@ -88,6 +93,6 @@ if __name__ == '__main__':
     v = vis_att()
     # v.vis_one_idx(1)
     # v.vis_one_shape('bed_0543')
-    # v.vis_one_shape('airplane_0659')
+    # v.vis_one_shape('monitor_0483')
     # v.vis_one_shape('car_0202')
-    v.vis_sp('car_0202', 'mask2', 5)
+    v.vis_sp('bottle_0348', 'mask1', 66)
