@@ -344,7 +344,8 @@ def get_heatmap_from_prob(p_map):
     return heat_map
 
 def get_norm_heatmap_from_prob(p_map):
-    p_map = 0.25*(p_map - p_map.min())/(p_map.max()- p_map.min()) + 0.25
+    # p_map = 0.25*(p_map - p_map.min())/(p_map.max()- p_map.min()) + 0.25
+    p_map = (p_map - p_map.min())/(p_map.max()- p_map.min())
     jet_len = len(jet_map_65) - 1
     idx = np.floor(p_map*jet_len).astype(np.uint8)
     heat_map = np.zeros((idx.shape[0], 3))

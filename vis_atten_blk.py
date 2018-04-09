@@ -76,18 +76,44 @@ class vis_att(object):
         color = heat_map_fun.get_norm_heatmap_from_prob(c)
         ax = plt.figure().add_subplot(111, projection='3d')
         ax.scatter(pc[:, 0], pc[:, 1], pc[:, 2], c=color)
-        l_min = min(pc[:, 0].min(), pc[:, 1].min(), pc[:, 2].min())
-        l_max = min(pc[:, 0].max(), pc[:, 1].max(), pc[:, 2].max())
-        l_min = min(-abs(l_min), -abs(l_max))
-        l_max = min(abs(l_min), abs(l_max))
-        ax.set_xlim(l_min, l_max)
-        ax.set_ylim(l_min, l_max)
-        ax.set_zlim(pc[:, 2].min(), pc[:, 2].max())
+        # # lamp
+        # l_val = 0.3
+        # offset_x = -0.4
+        # offset_y = 0
+        # offset_z = 0.4
+
+        # airplane
+        l_val = 0.5
+        offset_x = 0.4
+        offset_y = 0
+        offset_z = 0.4
+
+        # # bookshelf
+        # l_val = 0.5
+        # offset_x = 0.4
+        # offset_y = -0.8
+        # offset_z = 0.4
+
+        # # bottle_0348
+        # l_val = 0.3
+        # offset_x = 0.4
+        # offset_y = -0.8
+        # offset_z = 1.0
+
+        # # chair_0910
+        # l_val = 0.2
+        # offset_x = 0.9
+        # offset_y = -0.6
+        # offset_z = 1.0
+
+        ax.set_xlim(-l_val+offset_x, l_val+offset_x)
+        ax.set_ylim(-l_val+offset_y, l_val+offset_y)
+        ax.set_zlim(-l_val+offset_z, l_val+offset_z)
         ax.axis('off')
-        # ax.set_zlim(-1, 1)
         if show:
             plt.show()
-        plt.savefig(save_name)
+        else:
+            plt.savefig(save_name)
 
 if __name__ == '__main__':
     v = vis_att()
@@ -95,4 +121,8 @@ if __name__ == '__main__':
     # v.vis_one_shape('bed_0543')
     # v.vis_one_shape('monitor_0483')
     # v.vis_one_shape('car_0202')
-    v.vis_sp('bottle_0348', 'mask1', 66)
+    # v.vis_sp('lamp_0131', 'mask1', 17)
+    v.vis_sp('airplane_0659', 'mask2', 21)
+    # v.vis_sp('bookshelf_0622', 'mask2', 32)
+    # v.vis_sp('bottle_0348', 'mask2', 112)
+    # v.vis_sp('chair_0910', 'mask2', 102)
